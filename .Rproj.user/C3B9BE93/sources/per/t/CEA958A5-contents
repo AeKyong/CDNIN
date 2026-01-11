@@ -1,0 +1,26 @@
+rm(list=ls())
+devtools::load_all(".")
+
+if (!require(mvtnorm)) install.packages("mvtnorm")
+library(mvtnorm)
+library(psych)
+
+# arrayNumber = as.numeric(commandArgs(trailingOnly = TRUE)[1])
+arrayNumber = 1310
+
+set.seed(arrayNumber)
+
+# implement condition values in simulation
+simulationSpecs = conditionInformation(arrayNumber = arrayNumber, nReplicationsPerCondition = 1)
+
+# generate item response data
+simDataList = simulateSICMdata(
+  lStructure = simulationSpecs$lStructure,
+  mainA = simulationSpecs$mainA,
+  mainT = simulationSpecs$mainT,
+  tetra = simulationSpecs$tetra,
+  nSample = simulationSpecs$nSample,
+  misconcept = simulationSpecs$misconcept,
+  nItems = simulationSpecs$nItems,
+  nOptionsPerItem = simulationSpecs$nOptionsPerItem
+  )

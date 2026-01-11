@@ -1,0 +1,52 @@
+conditionInformation = function(arrayNumber, nReplicationsPerCondition, nCores = 4){
+  # convert array number to condition number
+  conditionNumber = floor((arrayNumber - 1)/nReplicationsPerCondition) + 1
+
+  #-------------------------
+  # Constant Conditions
+  #-------------------------
+  nOptionsPerItem = 4
+
+  #-------------------------
+  # Manipulated Conditions
+  #-------------------------
+  conditions = list(
+    lStructure = c("simple", "complex"),
+    mainA = c("low", "medium", "high"),
+    mainT = c("low" , "high"),
+    tetra = c(0.00, 0.35, 0.70),
+    nSamples = c(100, 500, 1000, 2000),
+    misconcept = c("low", "medium", "high"),
+    nItems = c(10, 20),
+    estimation = c("zeroOrder" , "nonRegularized" , "Regularized")
+  )
+
+  nConditions = prod(sapply(conditions, FUN = length))
+  conditionsMatrix = matrix(NA, nrow = nConditions, ncol = length(conditions))
+  colnames(conditionsMatrix) = names(conditions)
+  cond = 1
+  for(cond in 1:nConditions){
+    conditionsMatrix[cond, ] = dec2bin(
+      decimal_number = cond - 1,
+      nattributes = length(conditions),
+      basevector = sapply(X = conditions, FUN = length)
+    ) + 1
+  }
+
+  lStructure = conditions$lStructure[conditionsMatrix[conditionNumber,1]]
+  mainA = conditions$mainA[conditionsMatrix[conditionNumber,2]]
+  mainT = conditions$mainT[conditionsMatrix[conditionNumber,3]]
+  tetra = conditions$tetra[conditionsMatrix[conditionNumber,4]]
+  nSamples = conditions$nSamples[conditionsMatrix[conditionNumber,5]]
+  misconcept = conditions$misconcept[conditionsMatrix[conditionNumber,6]]
+  nItems = conditions$nItems[conditionsMatrix[conditionNumber,7]]
+  estimation = conditions$estimation[conditionsMatrix[conditionNumber,8]]
+
+
+  return(list(
+    conditionNumber= conditionNumber, conditions = conditions, nOptionsPerItem = nOptionsPerItem,
+    lStructure = lStructure, mainA = mainA, mainT = mainT, tetra = tetra, nSamples = nSamples,
+    misconcept = misconcept, nItems = nItems, estimation = estimation
+  ))
+
+}

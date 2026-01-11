@@ -1,0 +1,164 @@
+nominalIsing = function(data, lambda, gamma = 0.25, AND = TRUE){
+
+  nItems = ncol(data)
+  df = as.data.frame(data)
+  df[] <- lapply(df, as.factor)
+browser()
+  # Estimation in glmnet
+  df_list = all_levels = intercepts = betas = lambdas = convg = list()
+  nlambdas = N = c()
+  for (i in 1:nItems) {
+
+    # remove levels where frequency is 0 or 1
+    tab = table( df[,i])
+    valid_levels = which(tab >1)
+    levels = sort(names(tab)[valid_levels])
+
+    df[,i] = factor(df[,i], levels = levels)
+    df.com = df[complete.cases(df), ]  # list-wise deletion if the frequency of the category is one.
+
+    y = df.com[, i]
+    x_matrix = makeX(train = df.com[,-i])
+    if(lambda == TRUE) { # regularized (LASSO)
+      fit = glmnet(x = x_matrix, y = y, family = "multinomial", alpha = 1, nlambda = 100)
+    } else if(lambda == FALSE){ # non-regularized
+      fit = bigGlm(x = x_matrix, y = y, family = "multinomial", path = TRUE)
+    }
+
+    df_list[[paste0("item", i)]] = df.com
+    all_levels[[paste0("item", i)]] = levels
+    intercepts[[paste0("item",i)]] = fit$a0
+    betas[[paste0("item",i)]] = fit$beta
+    lambdas[[paste0("item",i)]] = fit$lambda
+    nlambdas[paste0("item",i)] = length(lambdas[[i]])
+    N[paste0("item",i)] = nrow(x_matrix)
+    convg[[paste0("item",i)]] = ifelse(fit$npasses <= 1e5, TRUE, FALSE)
+  }
+
+  # J: the number of non-zero betas
+  logL = J = EBIC = penalty = matrix(0, max(nlambdas), nItems)
+  for(i in 1:nItems){
+    for(l in 1:nlambdas[i]){
+      J_level = 0
+      for(level in all_levels[[i]]){
+        J_level = sum(J_level, sum(betas[[i]][[level]][,l] != 0))
+      }
+      J[l,i] = J_level
+    }
+  }
+
+  # P: the number of predictors
+  P = list()
+  for (i in 1:nItems) {
+    x_matrix = makeX(train = df[,-i])
+    P[[i]] = ncol(x_matrix)
+  }
+
+  # log-likelihood
+  for (i in 1:nItems){
+    df = df_list[[paste0("item", i)]]
+    y = df[, i]
+    x_matrix = makeX(train = df[,-i])
+
+    for(l in 1:nlambdas[i]){
+      int = intercepts[[i]][,l]
+      names(int) = all_levels[[i]]
+      beta = list()
+      for(level in all_levels[[i]]){
+        beta[[level]] = betas[[i]][[level]][,l]
+      }
+      logL_N = 0
+      for(e in 1:N[i]){
+        x = x_matrix[e, ]
+        nu = list()
+        deno = 0
+        for(level in all_levels[[i]]){
+          nu[[level]] = int[level] + x %*% beta[[level]]  ##error
+          deno = deno + exp(nu[[level]])
+        }
+        deno = max(log(deno), .Machine$double.xmin)
+        logL_e = nu[[y[e]]] - deno
+        logL_N = logL_N + logL_e
+      } #examinee
+      logL[l,i] = logL_N
+    } #lambda
+  } #item
+
+  # EBIC
+  for(i in 1:nItems){
+    penalty[, i] = J[, i] * log(N[i]) + 2 * gamma * log(P[[i]]-1)
+    EBIC[, i] = -2 * logL[, i] + penalty[, i]
+    penalty[logL[,i]== 0, i] = NA
+    EBIC[logL[,i]== 0, i] = NA
+  }
+
+  # Optimal lambda
+  lambda.opt = apply(EBIC, 2, which.min)
+
+  # Thresholds
+  intercepts.opt = list()
+  for(i in 1:nItems){
+    intercepts.opt[[i]] = intercepts[[i]][,lambda.opt[i]]
+  }
+
+  # Weights
+  nLevels = sapply(all_levels, length)
+  maxLevel = max(nLevels)
+  levels = all_levels[[which(nLevels==maxLevel)[1]]]
+  items = paste0("item", 1:nItems)
+  nvar = nItems * maxLevel
+  weights.opt =  matrix(0, nvar, nvar)
+  rownames(weights.opt) = colnames(weights.opt) =
+     as.vector(t(outer(items, levels, paste0)))
+  for(i in 1:nItems){
+    for(level in all_levels[[i]]){
+      beta.opt = betas[[i]][[level]][,lambda.opt[i]]
+      weights.opt[paste0("item",i,level), names(beta.opt)] = beta.opt
+    }
+  }
+
+  if (AND == TRUE) {
+    adj = weights.opt
+    adj = (adj != 0) * 1
+    EN.weights = adj * t(adj)
+    EN.weights = EN.weights * weights.opt
+    meanweights.opt = (EN.weights + t(EN.weights)) / 2
+    meanweights.opt[meanweights.opt < 0] = 0
+  } else {
+    meanweights.opt = (weights.opt + t(weights.opt)) / 2
+    meanweights.opt[meanweights.opt < 0] = 0
+  }
+
+  # remove non-convergence items
+  ncItems = names(which(convg == FALSE))
+  if(length(ncItems) > 0){
+    pattern = paste0("^(", paste(ncItems, collapse = "|"), ")[^0-9]")
+    meanweights.opt = meanweights.opt[!grepl(pattern, rownames(meanweights.opt)), !grepl(pattern, colnames(meanweights.opt)), drop=FALSE]
+  }
+
+  # Graph
+  graph = graph_from_adjacency_matrix(
+    meanweights.opt,
+    weighted = TRUE,
+    mode = "undirected",
+    diag = FALSE
+  )
+
+  # Clustering in igraph
+  communities = cluster_walktrap(graph, steps = 1)
+  labels = membership(communities)
+
+  return(list(
+    convg = convg,
+    graph = graph,
+    communities = communities,
+    labels = labels,
+    intercepts = intercepts.opt,
+    weights = meanweights.opt
+  ))
+}
+
+
+
+
+
