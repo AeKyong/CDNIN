@@ -22,7 +22,8 @@ conditionInformation = function(arrayNumber, nReplicationsPerCondition, nCores =
     nSamples = c(100, 500, 1000),
     misconcept = c("low", "medium", "high"),
     nItems = c(10, 20),
-    estimationName = c("zeroOrder" , "nonRegularized" , "regularized")
+    estimationName = c("zeroOrder" , "nonRegularized" , "regularized"),
+    undirectedRule = c("AND", "OR")
   )
 
   nConditions = prod(sapply(conditions, FUN = length))
@@ -37,6 +38,11 @@ conditionInformation = function(arrayNumber, nReplicationsPerCondition, nCores =
     ) + 1
   }
 
+  # remove the conditions ("zeroOrder" and "OR")
+  conditionsMatrix = conditionsMatrix[!(conditionsMatrix[, "estimationName"] ==  1 &
+                                           conditionsMatrix[,"undirectedRule"] == 2), ]
+  nConditions = nrow(conditionsMatrix)
+
   lStructure = conditions$lStructure[conditionsMatrix[conditionNumber,1]]
   mainA = conditions$mainA[conditionsMatrix[conditionNumber,2]]
   mainT = conditions$mainT[conditionsMatrix[conditionNumber,3]]
@@ -45,14 +51,11 @@ conditionInformation = function(arrayNumber, nReplicationsPerCondition, nCores =
   misconcept = conditions$misconcept[conditionsMatrix[conditionNumber,6]]
   nItems = conditions$nItems[conditionsMatrix[conditionNumber,7]]
   estimationName = conditions$estimationName[conditionsMatrix[conditionNumber,8]]
+  undirectedRule = conditions$undirectedRule[conditionsMatrix[conditionNumber,9]]
 
 
-  nOptions = nOptionsPerItem * nItems
-  nDistractors = (nOptionsPerItem-1) * nItems
-
-
+  # main effect size of attributes and theta
   if(mainA == "low"){mainA.min = 0.75; mainA.max = 1.25}
-  # else if(mainA =="medium"){mainA.min = 1.25; mainA.max = 1.75}
   else if(mainA =="high"){mainA.min = 1.75; mainA.max = 2.25}
 
   if(mainT == "low"){mainT.min = 0.3; mainT.max = 0.6}
@@ -61,6 +64,9 @@ conditionInformation = function(arrayNumber, nReplicationsPerCondition, nCores =
   #-----------------------------------------------------------------------------
   # set the number of attributes and Qmatrix by size of misconcept & loading structure
   #-----------------------------------------------------------------------------
+  nOptions = nOptionsPerItem * nItems
+  nDistractors = (nOptionsPerItem-1) * nItems
+
   if(lStructure == "simple"){
 
     # number of attributes
@@ -119,11 +125,12 @@ conditionInformation = function(arrayNumber, nReplicationsPerCondition, nCores =
 
 
   return(list(
-    nConditions = nConditions, conditionNumber= conditionNumber, conditions = conditions,  lStructure = lStructure,
+    nConditions = nConditions, conditionNumber= conditionNumber, conditions = conditions, lStructure = lStructure,
     int.min = int.min, int.max = int.max, two.min = two.min, two.max = two.max,
     mainA.min = mainA.min, mainA.max = mainA.max, mainT.min = mainT.min, mainT.max= mainT.max,
     misconcept = misconcept, nAttributes= nAttributes, tetra = tetra, nSamples = nSamples,
-    nItems = nItems, qMatrix= qMatrix, estimationName = estimationName, estimation = estimation, lambda = lambda
+    nItems = nItems, qMatrix= qMatrix, estimationName = estimationName, estimation = estimation,
+    undirectedRule = undirectedRule, lambda = lambda
   ))
 
 }

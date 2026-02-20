@@ -1,4 +1,4 @@
-nominalIsing = function(data, lambda, gamma = 0.25, AND = TRUE){
+nominalIsing = function(data, lambda, gamma = 0.25, undirectedRule){
 
   nItems = ncol(data)
   df = as.data.frame(data)
@@ -16,8 +16,9 @@ nominalIsing = function(data, lambda, gamma = 0.25, AND = TRUE){
     valid_levels = which(tab >1)
     levels = sort(names(tab)[valid_levels])
 
-    df[,i] = factor(df[,i], levels = levels)
-    df.com = df[complete.cases(df), ]  # list-wise deletion if the frequency of the category is one.
+    df.fac = df
+    df.fac[,i] = factor(df[,i], levels = levels)
+    df.com = df.fac[complete.cases(df.fac), ]  # list-wise deletion if the frequency of the category is one.
 
     y = df.com[, i]
     x_matrix = makeX(train = df.com[,-i])
@@ -86,7 +87,7 @@ nominalIsing = function(data, lambda, gamma = 0.25, AND = TRUE){
     P_list[[paste0("item",i)]] = P
     convg[[paste0("item",i)]] = ifelse(fit$npasses <= 1e5, TRUE, FALSE)
   }
-browser()
+
   # Optimal lambda
   lambda.opt = apply(EBIC, 2, which.min)
   lambda_vec = c()
@@ -116,14 +117,14 @@ browser()
     }
   }
 
-  if (AND == TRUE) {
+  if (undirectedRule == "AND") {
     adj = weights.opt
     adj = (adj != 0) * 1
     EN.weights = adj * t(adj)
     EN.weights = EN.weights * weights.opt
     meanweights.opt = (EN.weights + t(EN.weights)) / 2
     meanweights.opt[meanweights.opt < 0] = 0
-  } else {
+  } else if(undirectedRule == "OR"){
     meanweights.opt = (weights.opt + t(weights.opt)) / 2
     meanweights.opt[meanweights.opt < 0] = 0
   }

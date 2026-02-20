@@ -37,7 +37,8 @@ simulateSICMdata = function(lStructure, int.min, int.max, two.min, two.max, main
     itemQ = qMatrix[itemrow, ]
     itemPara = truePara[itemrow,]
 
-    # sample para
+    # sample parameters
+    int.max = 0
     l0 = runif((nOptions-1), int.min, int.max)
     lt = runif(1, mainT.min, mainT.max)
     nl1 = length(which(itemQ>0))
@@ -52,13 +53,12 @@ simulateSICMdata = function(lStructure, int.min, int.max, two.min, two.max, main
     itemPara[aRow,"l_0"] = 0
     itemPara[,"l_t"] = lt
 
-
     #l_1 and l_2
     l_pools = list("1" = l1, "2" = l2)
     max_order = 2
-    for (o in 1:max_order) {
+    for (o in 1:max_order) {  # main, interaction
       current_pool = l_pools[[as.character(o)]]
-      for (r in 1:nrow(itemPara)) {
+      for (r in 1:nrow(itemPara)) { # category
         att = which(itemQ[r, ] == 1)
         if (length(att) < o) next
         if (o == 1) {
@@ -112,10 +112,10 @@ simulateSICMdata = function(lStructure, int.min, int.max, two.min, two.max, main
         }
       }
 
-      # logit_e: reflect theta_e value into the logit matrix
+      # logit_e: reflect theta_e value into the logit matrix (Bradshaw & Templin (2014), eq(8))
       logit_e = logit
-      logit_e[,"l_t"] = -1*exp(logit_e[,"l_t"]) * theta_e
-      logit_e[aRow, "l_t"] = 0  # Q. Is it correct for identification?
+      logit_e[,"l_t"] = -1 * exp(logit_e[,"l_t"] * theta_e)
+      logit_e[aRow, "l_t"] = 0
 
       # logit_k: generate an examinee's response
       logit_k = rowSums(logit_e, na.rm=T)
@@ -125,6 +125,7 @@ simulateSICMdata = function(lStructure, int.min, int.max, two.min, two.max, main
       y_idx = rmultinom(1, size = 1, p_k)
       y_ei = sub(".*(.$)", "\\1", rownames(y_idx)[which(y_idx==1)])
       Y_i = rbind(Y_i, y_ei)
+
 
     } #//examinee
     colnames(Y_i) = paste0("item", item)

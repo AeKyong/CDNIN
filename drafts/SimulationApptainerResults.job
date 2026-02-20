@@ -3,7 +3,7 @@
 #####Set Scheduler Configuration Directives#####
 
 #Name the job:
-#$ -N CDNIN
+#$ -N CDNINr
 
 #Start script in current working directory
 #$ -cwd
@@ -21,4 +21,4 @@
 #$ -pe smp 4
 
 #####End Resource Selection Directives#####
-apptainer -v exec /Users/aekjung/Jung_apptainer_202601.sif Rscript drafts/runSimulation.R $SGE_TASK_ID
+apptainer -v exec /Users/aekjung/Jung_apptainer_202601.sif Rscript drafts/analyzeResults.R $SGE_TASK_ID
